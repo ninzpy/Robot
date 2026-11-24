@@ -2,7 +2,7 @@
 //   public/blox/   host page + epoxy client   (engine files come from Roblox's CDN at runtime)
 //   public/proxy/  Scramjet sign-in browser
 //   public/_headers  cross-origin isolation for /blox/ (needed for SharedArrayBuffer)
-import { cp, mkdir, rm, writeFile, copyFile } from "node:fs/promises";
+import { cp, mkdir, rm, writeFile, copyFile, access } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -19,7 +19,15 @@ await mkdir(join(PUB, "proxy", "controller"), { recursive: true });
 
 // --- /blox/ ---
 await cp(join(ROOT, "webblox"), join(PUB, "blox"), { recursive: true });
-const epoxyEntry = require.resolve("@mercuryworkshop/epoxy-transport"); // dist/index.mjs
+// Must be the ES module build (it has a default export), not the CommonJS one.
+const epoxyDir = join(ROOT, "node_modules", "@mercuryworkshop", "epoxy-transport", "dist");
+let epoxyEntry = join(epoxyDir, "index.mjs");
+try {
+  await access(epoxyEntry);
+} catch {
+  epoxyEntry = fileURLToPath(import.meta.resolve("@mercuryworkshop/epoxy-transport"));
+}
+console.log("[weblox] epoxy:", epoxyEntry);
 await copyFile(epoxyEntry, join(PUB, "blox", "epoxy.mjs"));
 
 // --- /proxy/ ---
